@@ -1,0 +1,17 @@
+name = "global-fund-valuation"
+main = "server.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+NODE_ENV = "production"
+
+# Cloudflare Workers 不直接支持 Node.js Express
+# 需要使用 Pages 部署或转换为 Workers 格式
+# 推荐使用 Cloudflare Pages 部署此项目
+
+# 如果使用 Cloudflare Pages:
+# 1. 在 Cloudflare Dashboard 创建 Pages 项目
+# 2. 连接 GitHub 仓库
+# 3. 设置构建命令: npm install
+# 4. 设置输出目录: public
+# 5. 设置环境变量: NODE_VERSION = 18

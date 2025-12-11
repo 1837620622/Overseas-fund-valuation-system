@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>海外基金实时估值系统 | GLOBAL FUND VALUATION</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #050b14;
+            --bg-card: rgba(16, 28, 48, 0.7);
+            --primary: #00f3ff;
+            --secondary: #bc13fe;
+            --success: #00ff9d;
+            --danger: #ff0055;
+            --text-main: #e0f2fe;
+            --text-muted: #94a3b8;
+            --glass-border: rgba(0, 243, 255, 0.1);
+        }
+        body {
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(188, 19, 254, 0.05), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(0, 243, 255, 0.05), transparent 25%);
+            color: var(--text-main);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+        .font-cyber { font-family: 'Orbitron', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .glass-panel {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+        }
+        .cyber-border { position: relative; }
+        .cyber-border::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+            opacity: 0.5;
+        }
+        .cyber-border::after {
+            content: '';
+            position: absolute;
+            bottom: 0; right: 0; width: 100%; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--secondary), transparent);
+            opacity: 0.5;
+        }
+        .fund-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .fund-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(0, 243, 255, 0.4);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.1);
+        }
+        .text-up { color: var(--success); text-shadow: 0 0 10px rgba(0, 255, 157, 0.3); }
+        .text-down { color: var(--danger); text-shadow: 0 0 10px rgba(255, 0, 85, 0.3); }
+        .text-flat { color: var(--text-muted); }
+        .bg-up { background-color: rgba(0, 255, 157, 0.1); border: 1px solid rgba(0, 255, 157, 0.2); }
+        .bg-down { background-color: rgba(255, 0, 85, 0.1); border: 1px solid rgba(255, 0, 85, 0.2); }
+        .bg-flat { background-color: rgba(148, 163, 184, 0.1); border: 1px solid rgba(148, 163, 184, 0.2); }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #020617; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+        .cyber-loader {
+            width: 48px; height: 48px;
+            border: 2px solid var(--primary);
+            border-bottom-color: transparent;
+            border-radius: 50%;
+            display: inline-block;
+            animation: rotation 1s linear infinite;
+            box-shadow: 0 0 10px var(--primary);
+        }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .badge { font-size: 0.65rem; padding: 2px 6px; border-radius: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .badge-combined { background: linear-gradient(135deg, rgba(0,243,255,0.2), rgba(188,19,254,0.2)); border: 1px solid rgba(0,243,255,0.3); color: #fff; }
+        .badge-single { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); }
+        .modal { backdrop-filter: blur(5px); background: rgba(0,0,0,0.8); }
+        .modal-content { box-shadow: 0 0 50px rgba(0,0,0,0.5); border: 1px solid var(--glass-border); }
+        .lang-btn { transition: all 0.3s; }
+        .lang-btn.active { background: var(--primary); color: #000; }
+        .lang-btn:not(.active):hover { background: rgba(0,243,255,0.2); }
+        /* 水印样式 */
+        .watermark {
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.03;
+            font-size: 14px;
+            color: var(--primary);
+            transform: rotate(-15deg);
+            white-space: nowrap;
+            user-select: none;
+        }
+        /* 欢迎弹窗 */
+        .welcome-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(10px);
+        }
+        .welcome-content {
+            text-align: center;
+            max-width: 400px;
+            padding: 40px;
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            box-shadow: 0 0 60px rgba(0,243,255,0.2);
+        }
+        .welcome-content h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body>
+    <!-- 欢迎弹窗 -->
+    <div id="welcomeModal" class="welcome-modal">
+        <div class="welcome-content">
+            <i class="ri-earth-line text-5xl text-[var(--primary)] mb-4"></i>
+            <h2 class="font-cyber">万能程序员（传康KK）</h2>
+            <p class="text-gray-400 text-sm mb-6">海外基金实时估值系统</p>
+            <div class="p-4 bg-black/30 rounded-lg border border-[var(--danger)]/30 mb-6">
+                <p class="text-[var(--danger)] text-xs font-bold mb-2">⚠️ 免责声明</p>
+                <p class="text-gray-400 text-xs leading-relaxed">
+                    本系统数据<strong class="text-white">仅供参考</strong>，不构成任何投资建议。<br>
+                    投资有风险，入市需谨慎。
+                </p>
+            </div>
+            <button onclick="closeWelcome()" class="w-full py-3 bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-black font-bold rounded-lg hover:opacity-90 transition">
+                我已了解，进入系统
+            </button>
+            <p class="text-gray-600 text-[10px] mt-4">Vx: 1837620622 | 咸鱼/B站: 万能程序员</p>
+        </div>
+    </div>
+
+    <!-- 水印容器 -->
+    <div id="watermarkContainer"></div>
+
+    <nav class="glass-panel sticky top-0 z-50 border-b-0">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3 group cursor-pointer">
+                    <div class="relative">
+                        <i class="ri-earth-line text-2xl text-[var(--primary)] group-hover:animate-pulse"></i>
+                        <div class="absolute -inset-1 bg-[var(--primary)] rounded-full opacity-20 blur group-hover:opacity-40 transition"></div>
+                    </div>
+                    <div>
+                        <h1 class="font-cyber text-lg tracking-wider font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)]">
+                            GLOBAL.FUND
+                        </h1>
+                        <p class="text-[10px] text-gray-500 tracking-[0.2em] uppercase" data-i18n="subtitle">Real-time Valuation System</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2 md:space-x-4">
+                    <!-- 语言切换 -->
+                    <div class="flex rounded overflow-hidden border border-white/10">
+                        <button onclick="setLang('zh')" id="langZh" class="lang-btn px-2 py-1 text-[10px] font-bold active">中文</button>
+                        <button onclick="setLang('en')" id="langEn" class="lang-btn px-2 py-1 text-[10px] font-bold">EN</button>
+                    </div>
+                    <div class="text-right hidden sm:block">
+                        <p class="text-[10px] text-gray-500 uppercase tracking-widest" data-i18n="status">System Status</p>
+                        <div class="flex items-center justify-end space-x-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-[var(--success)] animate-pulse"></span>
+                            <p id="lastUpdate" class="font-mono text-xs text-[var(--primary)]">--:--:--</p>
+                        </div>
+                    </div>
+                    <button onclick="refreshData()" 
+                            class="group relative px-3 md:px-4 py-2 bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 border border-[var(--primary)]/50 text-[var(--primary)] rounded transition overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-[var(--primary)]/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                        <div class="flex items-center space-x-2 relative z-10">
+                            <i class="ri-refresh-line group-hover:rotate-180 transition-transform duration-500"></i>
+                            <span class="text-xs font-cyber hidden md:inline" data-i18n="refresh">REFRESH</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="h-[1px] w-full bg-gradient-to-r from-transparent via-[var(--primary)]/50 to-transparent"></div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-6 space-y-6">
+        <div class="glass-panel rounded-lg p-1 overflow-hidden cyber-border">
+            <div id="marketIndex" class="flex space-x-4 overflow-x-auto p-3 no-scrollbar">
+                <div class="animate-pulse flex space-x-4 w-full">
+                    <div class="h-16 w-32 bg-white/5 rounded"></div>
+                    <div class="h-16 w-32 bg-white/5 rounded"></div>
+                    <div class="h-16 w-32 bg-white/5 rounded"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-col md:flex-row gap-4">
+            <div class="flex-1 relative group">
+                <i class="ri-search-2-line absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[var(--primary)] transition-colors"></i>
+                <input type="text" id="searchInput" 
+                       data-i18n-placeholder="searchPlaceholder"
+                       placeholder="搜索基金代码或名称..." 
+                       class="w-full bg-black/20 border border-white/10 rounded px-12 py-3 text-sm focus:border-[var(--primary)] focus:bg-black/40 focus:outline-none transition-all placeholder-gray-700">
+            </div>
+            <select id="sortSelect" class="bg-black/20 border border-white/10 rounded px-4 py-3 text-sm text-gray-300 focus:border-[var(--primary)] focus:outline-none cursor-pointer hover:bg-black/30 transition-colors appearance-none min-w-[140px]">
+                <option value="impact-desc" data-i18n-option="sortDesc">涨幅 (高到低)</option>
+                <option value="impact-asc" data-i18n-option="sortAsc">涨幅 (低到高)</option>
+                <option value="name" data-i18n-option="sortName">名称 (A-Z)</option>
+            </select>
+        </div>
+
+        <div class="flex items-center justify-between px-2">
+            <div class="flex items-center space-x-2 text-xs text-gray-500">
+                <i class="ri-cpu-line"></i>
+                <span id="dataDescription" class="tracking-wide" data-i18n="ready">系统就绪</span>
+            </div>
+            <div class="text-xs font-mono text-[var(--primary)]">
+                <span id="fundCount">0</span> <span data-i18n="assetsTracked">只基金</span>
+            </div>
+        </div>
+
+        <div id="loadingState" class="py-20 text-center">
+            <div class="cyber-loader"></div>
+            <p class="mt-4 text-xs font-cyber text-[var(--primary)] tracking-widest animate-pulse" data-i18n="loading">正在加载数据...</p>
+        </div>
+
+        <div id="emptyState" class="hidden py-20 text-center opacity-50">
+            <i class="ri-folder-warning-line text-6xl mb-4"></i>
+            <p class="font-cyber tracking-widest" data-i18n="noData">暂无数据</p>
+        </div>
+
+        <div id="fundList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 hidden"></div>
+    </div>
+
+    <div id="fundModal" class="modal fixed inset-0 hidden items-center justify-center z-[100] px-4">
+        <div class="modal-content glass-panel rounded-lg w-full max-w-2xl transform transition-all scale-95 opacity-0 duration-300" id="modalPanel">
+            <div class="flex justify-between items-center p-5 border-b border-white/10">
+                <div>
+                    <h3 id="modalTitle" class="text-lg font-bold tracking-wide text-white">FUND DETAILS</h3>
+                    <p class="text-[10px] text-[var(--primary)] font-mono tracking-widest mt-1" data-i18n="assetAnalysis">资产分析</p>
+                </div>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-white hover:rotate-90 transition-all duration-300">
+                    <i class="ri-close-line text-2xl"></i>
+                </button>
+            </div>
+            <div id="modalContent" class="p-6 overflow-y-auto max-h-[70vh]"></div>
+        </div>
+    </div>
+
+    <footer class="border-t border-white/5 mt-12 bg-black/20">
+        <div class="container mx-auto px-4 py-8">
+            <div class="flex flex-col md:flex-row justify-between items-center text-xs text-gray-600 gap-4">
+                <div class="flex items-center gap-2">
+                    <i class="ri-shield-check-line"></i>
+                    <span data-i18n="secure">安全连接已建立</span>
+                </div>
+                <div class="font-mono text-[var(--primary)]/50">v2.1.0</div>
+                <div class="text-center md:text-right opacity-50" data-i18n="disclaimer">
+                    数据仅供参考，不构成投资建议
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // ============================================================
+        // 多语言配置
+        // ============================================================
+        const i18n = {
+            zh: {
+                subtitle: '实时估值系统',
+                status: '系统状态',
+                refresh: '刷新',
+                searchPlaceholder: '搜索基金代码或名称...',
+                sortDesc: '涨幅 (高到低)',
+                sortAsc: '涨幅 (低到高)',
+                sortName: '名称 (A-Z)',
+                ready: '系统就绪',
+                assetsTracked: '只基金',
+                loading: '正在加载数据...',
+                noData: '暂无数据',
+                assetAnalysis: '资产分析',
+                secure: '安全连接已建立',
+                disclaimer: '数据仅供参考，不构成投资建议',
+                realtimeEst: '实时估值',
+                dataSource: '数据来源',
+                hybridFusion: '混合融合',
+                modelA: '模型 A',
+                modelB: '模型 B',
+                contribution: '贡献',
+                topHoldings: '主要持仓',
+                holdingUnavailable: '持仓数据暂不可用',
+                weight: '权重',
+                matched: '已匹配',
+                dataSynced: '数据已同步',
+                integration: '模型融合'
+            },
+            en: {
+                subtitle: 'Real-time Valuation System',
+                status: 'System Status',
+                refresh: 'REFRESH',
+                searchPlaceholder: 'Search fund code or name...',
+                sortDesc: 'Change (High to Low)',
+                sortAsc: 'Change (Low to High)',
+                sortName: 'Name (A-Z)',
+                ready: 'SYSTEM READY',
+                assetsTracked: 'ASSETS',
+                loading: 'PROCESSING DATA STREAM...',
+                noData: 'NO DATA FOUND',
+                assetAnalysis: 'ASSET ANALYSIS',
+                secure: 'SECURE CONNECTION ESTABLISHED',
+                disclaimer: 'Data for reference only. Not financial advice.',
+                realtimeEst: 'Real-time Est.',
+                dataSource: 'Data Source',
+                hybridFusion: 'HYBRID FUSION',
+                modelA: 'MODEL A',
+                modelB: 'MODEL B',
+                contribution: 'Contribution',
+                topHoldings: 'Top Holdings',
+                holdingUnavailable: 'HOLDING DATA UNAVAILABLE',
+                weight: 'Weight',
+                matched: 'MATCHED',
+                dataSynced: 'DATA SYNCED',
+                integration: 'MODEL INTEGRATION'
+            }
+        };
+
+        let currentLang = localStorage.getItem('lang') || 'zh';
+        let allFunds = [];
+        let currentSort = 'impact-desc';
+
+        function t(key) { return i18n[currentLang][key] || key; }
+
+        function setLang(lang) {
+            currentLang = lang;
+            localStorage.setItem('lang', lang);
+            document.getElementById('langZh').classList.toggle('active', lang === 'zh');
+            document.getElementById('langEn').classList.toggle('active', lang === 'en');
+            applyI18n();
+            filterFunds();
+        }
+
+        function applyI18n() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[currentLang][key]) el.textContent = i18n[currentLang][key];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (i18n[currentLang][key]) el.placeholder = i18n[currentLang][key];
+            });
+            const sortSelect = document.getElementById('sortSelect');
+            sortSelect.options[0].text = t('sortDesc');
+            sortSelect.options[1].text = t('sortAsc');
+            sortSelect.options[2].text = t('sortName');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setLang(currentLang);
+            loadData();
+            document.getElementById('searchInput').addEventListener('input', filterFunds);
+            document.getElementById('sortSelect').addEventListener('change', (e) => {
+                currentSort = e.target.value;
+                filterFunds();
+            });
+            document.getElementById('fundModal').addEventListener('click', (e) => {
+                if (e.target.id === 'fundModal') closeModal();
+            });
+            document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+        });
+
+        async function loadData() {
+            try {
+                const response = await fetch('/api/fund-valuation');
+                const result = await response.json();
+                if (result.success && result.data) {
+                    const data = result.data;
+                    if (data.indexs) renderMarketIndex(data.indexs);
+                    let matchedCount = result.sources?.matchedCount || 0;
+                    document.getElementById('dataDescription').innerHTML = 
+                        `${t('dataSynced')} <span class="mx-2 text-white/20">|</span> 
+                         <span class="text-[var(--primary)]">${t('integration')}</span> 
+                         <span class="ml-2 px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono text-white/70">${t('matched')}: ${matchedCount}</span>`;
+                    if (data.categoryImpacts) {
+                        allFunds = data.categoryImpacts.map(fund => ({
+                            id: fund.id, name: fund.name,
+                            estimatedImpact: fund.estimatedImpact,
+                            val1: fund.val1, val2: fund.val2,
+                            source: fund.source, stocks: fund.stocks || [], code: fund.code
+                        }));
+                        document.getElementById('fundCount').innerText = allFunds.length;
+                        filterFunds();
+                        showContent();
+                    }
+                    updateLastUpdateTime(result.lastUpdate);
+                } else { showEmpty(); }
+            } catch (error) { console.error(error); showEmpty(); }
+        }
+
+        async function refreshData() {
+            const btn = document.querySelector('button[onclick="refreshData()"]');
+            const icon = btn.querySelector('i');
+            icon.classList.add('animate-spin');
+            try { await fetch('/api/refresh', { method: 'POST' }); await loadData(); } 
+            finally { icon.classList.remove('animate-spin'); }
+        }
+
+        function renderMarketIndex(indexs) {
+            const container = document.getElementById('marketIndex');
+            container.innerHTML = indexs.map(idx => {
+                const val = parseFloat(idx.rise_fall_per);
+                const isUp = val > 0, isDown = val < 0;
+                const colorClass = isUp ? 'text-[var(--success)]' : (isDown ? 'text-[var(--danger)]' : 'text-gray-400');
+                const icon = isUp ? 'ri-arrow-right-up-line' : (isDown ? 'ri-arrow-right-down-line' : 'ri-subtract-line');
+                return `<div class="flex-shrink-0 w-28 md:w-32 bg-white/5 border border-white/5 rounded hover:bg-white/10 transition p-3">
+                    <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1 truncate">${idx.inxnm}</div>
+                    <div class="font-mono text-sm font-bold ${colorClass} flex items-center"><i class="${icon} mr-1"></i>${idx.rise_fall_per}</div>
+                </div>`;
+            }).join('');
+        }
+
+        function filterFunds() {
+            const keyword = document.getElementById('searchInput').value.toLowerCase();
+            let filtered = allFunds.filter(fund => 
+                (fund.name && fund.name.toLowerCase().includes(keyword)) ||
+                (fund.code && fund.code.toLowerCase().includes(keyword))
+            );
+            filtered.sort((a, b) => {
+                const valA = a.estimatedImpact || -999, valB = b.estimatedImpact || -999;
+                if (currentSort === 'impact-desc') return valB - valA;
+                if (currentSort === 'impact-asc') return valA - valB;
+                return a.name.localeCompare(b.name, 'zh-CN');
+            });
+            const container = document.getElementById('fundList');
+            if (filtered.length === 0) { container.classList.add('hidden'); document.getElementById('emptyState').classList.remove('hidden'); return; }
+            document.getElementById('emptyState').classList.add('hidden');
+            container.classList.remove('hidden');
+            container.innerHTML = filtered.map(fund => {
+                const impact = fund.estimatedImpact || 0;
+                const isUp = impact > 0, isDown = impact < 0;
+                const mainColor = isUp ? 'text-up' : (isDown ? 'text-down' : 'text-flat');
+                const mainBg = isUp ? 'bg-up' : (isDown ? 'bg-down' : 'bg-flat');
+                let badges = '';
+                if (fund.source === 'combined') badges = `<span class="badge badge-combined">HYBRID</span>`;
+                else if (fund.source === 'source1') badges = `<span class="badge badge-single">${t('modelA')}</span>`;
+                else if (fund.source === 'source2') badges = `<span class="badge badge-single">${t('modelB')}</span>`;
+                let detailInfo = '';
+                if (fund.source === 'combined' && fund.val1 !== null && fund.val2 !== null) {
+                    const c1 = fund.val1 >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]';
+                    const c2 = fund.val2 >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]';
+                    detailInfo = `<div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-white/10">
+                        <div><div class="text-[9px] text-gray-500 uppercase">${t('modelA')}</div><div class="font-mono text-xs ${c1}">${fund.val1 > 0 ? '+' : ''}${fund.val1.toFixed(2)}%</div></div>
+                        <div class="text-right"><div class="text-[9px] text-gray-500 uppercase">${t('modelB')}</div><div class="font-mono text-xs ${c2}">${fund.val2 > 0 ? '+' : ''}${fund.val2.toFixed(2)}%</div></div>
+                    </div>`;
+                }
+                return `<div class="fund-card glass-panel rounded-lg p-4 cursor-pointer" onclick="showFundDetail('${fund.id}')">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex-1 pr-3">
+                            <h3 class="font-bold text-sm md:text-base leading-snug text-gray-100">${fund.name}</h3>
+                            <div class="flex items-center gap-2 mt-1.5">${badges} <span class="text-[10px] font-mono text-gray-600">${fund.code || ''}</span></div>
+                        </div>
+                        <div class="${mainBg} px-2 py-1 rounded text-right min-w-[70px]">
+                            <div class="font-mono font-bold text-sm md:text-lg ${mainColor}">${impact > 0 ? '+' : ''}${impact.toFixed(2)}%</div>
+                        </div>
+                    </div>${detailInfo}
+                </div>`;
+            }).join('');
+        }
+
+        function showFundDetail(id) {
+            const fund = allFunds.find(f => f.id == id);
+            if (!fund) return;
+            const modal = document.getElementById('fundModal');
+            const panel = document.getElementById('modalPanel');
+            const content = document.getElementById('modalContent');
+            document.getElementById('modalTitle').innerText = fund.name;
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+            setTimeout(() => { panel.classList.remove('scale-95', 'opacity-0'); panel.classList.add('scale-100', 'opacity-100'); }, 10);
+            let holdingHtml = '';
+            if (fund.stocks && fund.stocks.length > 0) {
+                holdingHtml = `<div class="mt-6"><h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 border-b border-white/10 pb-2">${t('topHoldings')}</h4>
+                <div class="space-y-2">${fund.stocks.map((s, idx) => {
+                    let name, weight, change;
+                    if (typeof s === 'string') { const parts = s.split('@'); name = parts[0]; weight = parseFloat(parts[1]); change = parseFloat(parts[2]); }
+                    else { name = s.name; weight = s.weight; change = s.change; }
+                    const cColor = change > 0 ? 'text-[var(--success)]' : (change < 0 ? 'text-[var(--danger)]' : 'text-gray-500');
+                    return `<div class="flex items-center justify-between p-2 rounded bg-white/5 hover:bg-white/10 transition">
+                        <div class="flex items-center gap-3"><span class="font-mono text-xs text-gray-600 w-4">${idx+1}</span><span class="text-sm text-gray-200">${name}</span></div>
+                        <div class="text-right"><div class="font-mono text-xs ${cColor}">${change > 0 ? '+' : ''}${change}%</div><div class="text-[10px] text-gray-500">${weight}% ${t('weight')}</div></div>
+                    </div>`;
+                }).join('')}</div></div>`;
+            } else {
+                holdingHtml = `<div class="mt-8 p-6 text-center border border-dashed border-white/10 rounded"><p class="text-gray-500 text-xs font-mono">${t('holdingUnavailable')}</p></div>`;
+            }
+            const impact = fund.estimatedImpact || 0;
+            const impactColor = impact >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]';
+            const sourceLabel = fund.source === 'combined' ? t('hybridFusion') : (fund.source === 'source1' ? t('modelA') : t('modelB'));
+            content.innerHTML = `<div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="p-4 rounded bg-black/30 border border-white/5"><div class="text-[10px] text-gray-500 uppercase tracking-widest mb-1">${t('realtimeEst')}</div><div class="font-mono text-3xl font-bold ${impactColor}">${impact > 0 ? '+' : ''}${impact.toFixed(2)}%</div></div>
+                <div class="p-4 rounded bg-black/30 border border-white/5"><div class="text-[10px] text-gray-500 uppercase tracking-widest mb-1">${t('dataSource')}</div><div class="font-mono text-lg text-[var(--primary)]">${sourceLabel}</div></div>
+            </div>
+            ${fund.source === 'combined' ? `<div class="p-3 mb-4 rounded bg-[var(--primary)]/5 border border-[var(--primary)]/20">
+                <div class="flex justify-between text-xs mb-1"><span class="text-gray-400">${t('modelA')} ${t('contribution')} (40%)</span><span class="font-mono text-gray-200">${fund.val1}%</span></div>
+                <div class="w-full bg-black/50 h-1 rounded overflow-hidden mb-2"><div class="h-full bg-blue-500" style="width: ${Math.min(Math.abs(fund.val1)*10, 100)}%"></div></div>
+                <div class="flex justify-between text-xs mb-1"><span class="text-gray-400">${t('modelB')} ${t('contribution')} (60%)</span><span class="font-mono text-gray-200">${fund.val2}%</span></div>
+                <div class="w-full bg-black/50 h-1 rounded overflow-hidden"><div class="h-full bg-purple-500" style="width: ${Math.min(Math.abs(fund.val2)*10, 100)}%"></div></div>
+            </div>` : ''}${holdingHtml}`;
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('fundModal');
+            const panel = document.getElementById('modalPanel');
+            panel.classList.remove('scale-100', 'opacity-100'); panel.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 300);
+        }
+
+        // 关闭欢迎弹窗
+        function closeWelcome() {
+            const modal = document.getElementById('welcomeModal');
+            modal.style.opacity = '0';
+            modal.style.transition = 'opacity 0.5s';
+            setTimeout(() => { modal.style.display = 'none'; }, 500);
+        }
+
+        // 生成水印
+        function createWatermarks() {
+            const container = document.getElementById('watermarkContainer');
+            const text = '万能程序员（传康KK）仅供参考 不做投资建议';
+            const rows = Math.ceil(window.innerHeight / 120);
+            const cols = Math.ceil(window.innerWidth / 350);
+            let html = '';
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    html += `<div class="watermark" style="top:${i*120+30}px;left:${j*350}px;">${text}</div>`;
+                }
+            }
+            container.innerHTML = html;
+        }
+        
+        // 页面加载后生成水印
+        window.addEventListener('load', createWatermarks);
+        window.addEventListener('resize', createWatermarks);
+        function showContent() { document.getElementById('loadingState').classList.add('hidden'); document.getElementById('fundList').classList.remove('hidden'); }
+        function showEmpty() { document.getElementById('loadingState').classList.add('hidden'); document.getElementById('emptyState').classList.remove('hidden'); }
+        function updateLastUpdateTime(isoString) {
+            if (!isoString) return;
+            const date = new Date(isoString);
+            document.getElementById('lastUpdate').textContent = date.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+    </script>
+</body>
+</html>

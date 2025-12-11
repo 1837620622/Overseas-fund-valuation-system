@@ -1,0 +1,32 @@
+{
+  "name": "overseas-fund-valuation",
+  "version": "1.0.0",
+  "description": "海外基金实时估值系统 - 支持美股/QDII基金估值查询",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "node-schedule": "^2.1.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Vx:1837620622（传康kk）",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "keywords": [
+    "fund",
+    "valuation",
+    "qdii",
+    "overseas",
+    "stock"
+  ]
+}
